@@ -425,10 +425,10 @@ function renderResultsSheet(sheetIndex) {
     if (resultsSheetNames.length > 1) { let tabHtml = ''; resultsSheetNames.forEach((name, idx) => { const active = idx === sheetIndex ? ' active' : ''; tabHtml += `<button class="results-tab-item${active}" data-sheet-idx="${idx}">${escapeHtml(name)}</button>`; }); tabBar.innerHTML = tabHtml; tabBar.style.display = 'flex'; tabBar.querySelectorAll('.results-tab-item').forEach(btn => { btn.replaceWith(btn.cloneNode(true)); }); tabBar.querySelectorAll('.results-tab-item').forEach(btn => { btn.addEventListener('click', () => { renderResultsSheet(parseInt(btn.dataset.sheetIdx)); }); }); } else tabBar.style.display = 'none';
     const filteredData = currentFilter === 'all' ? sheetData : currentFilter === 'diff' ? sheetData.filter(item => item.type !== 'same') : currentFilter === 'same' ? sheetData.filter(item => item.type === 'same') : sheetData.filter(item => item.type === currentFilter);
     let html = ''; let rowNumber = 0;
-    const isCellFilter = ['added', 'deleted', 'modified'].includes(currentFilter);
+    const hasCellLevelItems = filteredData.some(item => item.colIndex !== undefined);
     const allMaxCols = sheetData.reduce((max, item) => Math.max(max, Array.isArray(item.row) ? item.row.length : 0), 0);
     html += `<table class="results-excel-preview"><thead><tr><th class="row-header-col"></th>`;
-    if (isCellFilter) html += `<th style="min-width:50px;">${i18n.t('old_file')}</th><th style="min-width:50px;">${i18n.t('new_file')}</th><th style="min-width:60px;">${getColumnName(0)}</th>`;
+    if (hasCellLevelItems) html += `<th style="min-width:50px;">${i18n.t('old_file')}</th><th style="min-width:50px;">${i18n.t('new_file')}</th><th style="min-width:60px;">${getColumnName(0)}</th>`;
     else for (let c = 0; c < allMaxCols; c++) html += `<th style="min-width:60px;max-width:600px;">${getColumnName(c)}</th>`;
     html += '</tr></thead><tbody>';
     filteredData.forEach(item => {
