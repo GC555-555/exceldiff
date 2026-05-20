@@ -405,8 +405,8 @@ function prepareResultsData(chapterColumnMap, startRowFile1, startRowFile2) {
       for (const item2 of group2.rows) {
         const row2 = item2.row; const absIdx2 = item2.idx + startRow2; if (!Array.isArray(row2)) continue;
         const ch = getChapterFromRow(row2, sheetChapterCol); const newRows = ch ? chapters2.get(ch) : null;
-        if (newRows) { let pos = -1; for (let j = 0; j < newRows.length; j++) { if (newRows[j].originalIdx === absIdx2) { pos = j; break; } } if (pos < 0) continue; const oldRows = chapters1.get(ch); if (!oldRows) resultsData.push({ sheet: sheetName, type: 'added', row: row2, originalIdx: absIdx2 }); else { const match = oldRows[pos]; if (!match) resultsData.push({ sheet: sheetName, type: 'added', row: row2, originalIdx: absIdx2 }); else if (rowsEqual(match.row, row2)) resultsData.push({ sheet: sheetName, type: 'same', row: row2, originalIdx: absIdx2 }); else { resultsData.push({ sheet: sheetName, type: 'modified', row: row2, oldRow: match.row, originalIdx: absIdx2, oldOriginalIdx: match.originalIdx }); resultsData.push({ sheet: sheetName, type: 'old', row: match.row, originalIdx: match.originalIdx }); const maxLen = Math.max(match.row.length, row2.length); for (let c = 0; c < maxLen; c++) { const v1 = c < match.row.length ? String(match.row[c] ?? '').trim() : ''; const v2 = c < row2.length ? String(row2[c] ?? '').trim() : ''; if (v1 !== v2) { const diffType = v1 && v2 ? 'modified' : v2 ? 'added' : 'deleted'; resultsData.push({ sheet: sheetName, type: diffType, row: row2, originalIdx: absIdx2, colIndex: c, oldValue: v1, newValue: v2 }); } } } } }
-        else { const ncIdx = noChapter2.findIndex(e => e.originalIdx === absIdx2); const match = ncIdx >= 0 && ncIdx < noChapter1.length ? noChapter1[ncIdx] : null; if (!match) resultsData.push({ sheet: sheetName, type: 'added', row: row2, originalIdx: absIdx2 }); else if (rowsEqual(match.row, row2)) resultsData.push({ sheet: sheetName, type: 'same', row: row2, originalIdx: absIdx2 }); else { resultsData.push({ sheet: sheetName, type: 'modified', row: row2, oldRow: match.row, originalIdx: absIdx2, oldOriginalIdx: match.originalIdx }); resultsData.push({ sheet: sheetName, type: 'old', row: match.row, originalIdx: match.originalIdx }); const maxLen = Math.max(match.row.length, row2.length); for (let c = 0; c < maxLen; c++) { const v1 = c < match.row.length ? String(match.row[c] ?? '').trim() : ''; const v2 = c < row2.length ? String(row2[c] ?? '').trim() : ''; if (v1 !== v2) { const diffType = v1 && v2 ? 'modified' : v2 ? 'added' : 'deleted'; resultsData.push({ sheet: sheetName, type: diffType, row: row2, originalIdx: absIdx2, colIndex: c, oldValue: v1, newValue: v2 }); } } } }
+        if (newRows) { let pos = -1; for (let j = 0; j < newRows.length; j++) { if (newRows[j].originalIdx === absIdx2) { pos = j; break; } } if (pos < 0) continue; const oldRows = chapters1.get(ch); if (!oldRows) resultsData.push({ sheet: sheetName, type: 'added', row: row2, originalIdx: absIdx2 }); else { const match = oldRows[pos]; if (!match) resultsData.push({ sheet: sheetName, type: 'added', row: row2, originalIdx: absIdx2 }); else if (rowsEqual(match.row, row2)) resultsData.push({ sheet: sheetName, type: 'same', row: row2, originalIdx: absIdx2 }); else { resultsData.push({ sheet: sheetName, type: 'modified', row: row2, oldRow: match.row, originalIdx: absIdx2, oldOriginalIdx: match.originalIdx }); resultsData.push({ sheet: sheetName, type: 'old', row: match.row, originalIdx: match.originalIdx }); } } }
+        else { const ncIdx = noChapter2.findIndex(e => e.originalIdx === absIdx2); const match = ncIdx >= 0 && ncIdx < noChapter1.length ? noChapter1[ncIdx] : null; if (!match) resultsData.push({ sheet: sheetName, type: 'added', row: row2, originalIdx: absIdx2 }); else if (rowsEqual(match.row, row2)) resultsData.push({ sheet: sheetName, type: 'same', row: row2, originalIdx: absIdx2 }); else { resultsData.push({ sheet: sheetName, type: 'modified', row: row2, oldRow: match.row, originalIdx: absIdx2, oldOriginalIdx: match.originalIdx }); resultsData.push({ sheet: sheetName, type: 'old', row: match.row, originalIdx: match.originalIdx }); } }
       }
       const deleted = []; chapters1.forEach((oldRows, chapter) => { const newRows = chapters2.get(chapter); if (!newRows || oldRows.length > newRows.length) { const count = newRows ? oldRows.length - newRows.length : oldRows.length; for (let k = 0; k < count; k++) deleted.push({ chapter, row: oldRows[oldRows.length - 1 - k].row, originalIdx: oldRows[oldRows.length - 1 - k].originalIdx }); } });
       deleted.sort((a, b) => compareChapterNumbers(a.chapter, b.chapter));
@@ -425,34 +425,18 @@ function renderResultsSheet(sheetIndex) {
     if (resultsSheetNames.length > 1) { let tabHtml = ''; resultsSheetNames.forEach((name, idx) => { const active = idx === sheetIndex ? ' active' : ''; tabHtml += `<button class="results-tab-item${active}" data-sheet-idx="${idx}">${escapeHtml(name)}</button>`; }); tabBar.innerHTML = tabHtml; tabBar.style.display = 'flex'; tabBar.querySelectorAll('.results-tab-item').forEach(btn => { btn.replaceWith(btn.cloneNode(true)); }); tabBar.querySelectorAll('.results-tab-item').forEach(btn => { btn.addEventListener('click', () => { renderResultsSheet(parseInt(btn.dataset.sheetIdx)); }); }); } else tabBar.style.display = 'none';
     const filteredData = currentFilter === 'all' ? sheetData : currentFilter === 'diff' ? sheetData.filter(item => item.type !== 'same') : currentFilter === 'same' ? sheetData.filter(item => item.type === 'same') : sheetData.filter(item => item.type === currentFilter);
     let html = ''; let rowNumber = 0;
-    const hasCellLevelItems = filteredData.some(item => item.colIndex !== undefined);
     const allMaxCols = sheetData.reduce((max, item) => Math.max(max, Array.isArray(item.row) ? item.row.length : 0), 0);
     html += `<table class="results-excel-preview"><thead><tr><th class="row-header-col"></th>`;
-    if (hasCellLevelItems) html += `<th style="min-width:50px;">${i18n.t('old_file')}</th><th style="min-width:50px;">${i18n.t('new_file')}</th><th style="min-width:60px;">${getColumnName(0)}</th>`;
-    else for (let c = 0; c < allMaxCols; c++) html += `<th style="min-width:60px;max-width:600px;">${getColumnName(c)}</th>`;
+    for (let c = 0; c < allMaxCols; c++) html += `<th style="min-width:60px;max-width:600px;">${getColumnName(c)}</th>`;
     html += '</tr></thead><tbody>';
     filteredData.forEach(item => {
-      rowNumber++;
-      if (item.colIndex !== undefined) {
-        const cells = [];
-        const oldVal = item.oldValue || '';
-        const newVal = item.newValue || '';
-        const colLetter = getColumnName(item.colIndex);
-        const rowNum = (item.originalIdx || 0) + 1;
-        let cellStyle = ''; const sheetStyles = resultsStyles2[sheetName] || {};
-        if (sheetStyles[item.originalIdx] && sheetStyles[item.originalIdx][item.colIndex]) { cellStyle = convertExcelStyleToCSS(sheetStyles[item.originalIdx][item.colIndex]); }
-        const styleAttr = cellStyle ? ` style="${cellStyle}"` : '';
-        const highlightClass = item.type === 'added' ? 'results-row-added' : item.type === 'deleted' ? 'results-row-deleted' : 'results-row-modified';
-        html += `<tr class="${highlightClass}" data-row="${rowNumber}"><td class="row-number-cell">${rowNum}</td><td style="color:#999;font-style:italic;">${escapeHtml(oldVal)}</td><td style="color:#000;font-weight:600;"${styleAttr}>${escapeHtml(newVal)}</td><td style="color:#888;font-family:monospace;font-size:0.85rem;">${colLetter}${rowNum}</td></tr>`;
-      } else {
-        const maxCols = Array.isArray(item.row) ? item.row.length : 0; const cells = [];
-        let sheetStyles = {};
-        if (item.type === 'old' || item.type === 'deleted') sheetStyles = resultsStyles1[sheetName] || {}; else sheetStyles = resultsStyles2[sheetName] || {};
-        const originalRowIndex = item.originalIdx;
-        for (let i = 0; i < maxCols; i++) { let cellStyle = ''; if (originalRowIndex !== undefined && sheetStyles[originalRowIndex]) { const style = sheetStyles[originalRowIndex][i]; if (style) cellStyle = convertExcelStyleToCSS(style); } const styleAttr = cellStyle ? ` style="${cellStyle}"` : ''; cells.push(`<td${styleAttr}>${escapeHtml(String(item.row[i] ?? ''))}</td>`); }
-        const rowClass = item.type === 'added' ? 'results-row-added' : item.type === 'deleted' ? 'results-row-deleted' : item.type === 'modified' ? 'results-row-modified' : item.type === 'old' ? 'results-row-old' : '';
-        html += `<tr class="${rowClass}" data-row="${rowNumber}"><td class="row-number-cell">${rowNumber}</td>${cells.join('')}</tr>`;
-      }
+      rowNumber++; const maxCols = Array.isArray(item.row) ? item.row.length : 0; const cells = [];
+      let sheetStyles = {};
+      if (item.type === 'old' || item.type === 'deleted') sheetStyles = resultsStyles1[sheetName] || {}; else sheetStyles = resultsStyles2[sheetName] || {};
+      const originalRowIndex = item.originalIdx;
+      for (let i = 0; i < maxCols; i++) { let cellStyle = ''; if (originalRowIndex !== undefined && sheetStyles[originalRowIndex]) { const style = sheetStyles[originalRowIndex][i]; if (style) cellStyle = convertExcelStyleToCSS(style); } const styleAttr = cellStyle ? ` style="${cellStyle}"` : ''; cells.push(`<td${styleAttr}>${escapeHtml(String(item.row[i] ?? ''))}</td>`); }
+      const rowClass = item.type === 'added' ? 'results-row-added' : item.type === 'deleted' ? 'results-row-deleted' : item.type === 'modified' ? 'results-row-modified' : item.type === 'old' ? 'results-row-old' : '';
+      html += `<tr class="${rowClass}" data-row="${rowNumber}"><td class="row-number-cell">${rowNumber}</td>${cells.join('')}</tr>`;
     });
     html += '</tbody></table>'; wrapper.innerHTML = html;
   } catch (e) {
